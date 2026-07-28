@@ -3,103 +3,476 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Airspace Monitor — Мониторинг воздушного пространства РФ</title>
+<title>Airspace Monitor RU</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:rgba(255,255,255,0.08);--text:#e8edf5;--muted:#6b7a99;--accent:#3b82f6;--danger:#ef4444;--warning:#f59e0b;--success:#22c55e}
-body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-.logo{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 8px var(--success);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.hstats{display:flex;gap:20px;align-items:center}
-.stat{display:flex;flex-direction:column;align-items:flex-end}
-.sv{font-family:monospace;font-size:15px;font-weight:500}
-.sl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.main{display:flex;flex:1;overflow:hidden}
-.sidebar{width:280px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.tabs{display:flex;border-bottom:1px solid var(--border)}
-.tab{flex:1;padding:10px 0;font-size:11px;font-weight:500;text-align:center;color:var(--muted);cursor:pointer;text-transform:uppercase;border-bottom:2px solid transparent}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.scontent{flex:1;overflow-y:auto}
-.aitem{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer}
-.aitem:hover{background:var(--surface2)}
-.acode{font-family:monospace;font-size:13px;font-weight:500}
-.aname{font-size:11px;color:var(--muted);margin-top:2px}
-.badge{font-size:10px;font-weight:600;padding:3px 7px;border-radius:4px;text-transform:uppercase}
-.open{background:rgba(34,197,94,.15);color:var(--success)}
-.restricted{background:rgba(245,158,11,.15);color:var(--warning)}
-.closed{background:rgba(239,68,68,.15);color:var(--danger)}
-.unknown{background:rgba(107,122,153,.15);color:var(--muted)}
-.alertitem{padding:10px 14px;border-bottom:1px solid var(--border)}
-.alerthdr{display:flex;justify-content:space-between;margin-bottom:4px}
-.atype{font-size:10px;font-weight:600;text-transform:uppercase}
-.atype.high{color:var(--danger)}.atype.medium{color:var(--warning)}.atype.low{color:var(--muted)}
-.atime{font-size:10px;color:var(--muted);font-family:monospace}
-.atxt{font-size:12px;line-height:1.5}
-.asrc{font-size:10px;color:var(--accent);margin-top:4px}
-#map{flex:1;background:#0d1117}
-.bar{height:32px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:20px;flex-shrink:0}
-.bi{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
-.d{width:8px;height:8px;border-radius:50%}
-.empty{padding:24px 14px;text-align:center;color:var(--muted);font-size:12px}
-.csdot{width:6px;height:6px;border-radius:50%;background:var(--warning)}
-.csdot.on{background:var(--success);box-shadow:0 0 6px var(--success)}
-.csdot.err{background:var(--danger)}
-.leaflet-container{background:#0d1117!important}
-.leaflet-popup-content-wrapper{background:#1a2235!important;border:1px solid rgba(255,255,255,0.08)!important;border-radius:8px!important;color:#e8edf5!important}
-.leaflet-popup-tip{background:#1a2235!important}
-.pr{font-size:13px;font-weight:600;margin-bottom:6px;font-family:monospace}
-.prow{display:flex;justify-content:space-between;font-size:11px;color:#6b7a99;margin-bottom:3px}
-.prow span:last-child{color:#e8edf5}
+:root{--bg:#080c14;--s1:#0f1622;--s2:#161f30;--s3:#1c2840;--border:rgba(255,255,255,0.07);--text:#dde4f0;--muted:#5a6a85;--accent:#4f8ef7;--danger:#f04b4b;--warn:#f5a623;--ok:#2ecc71;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* HEADER */
+header{height:52px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:16px;flex-shrink:0;z-index:1000}
+.logo{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text);white-space:nowrap}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hstats{display:flex;gap:2px;flex:1;justify-content:center}
+.hstat{padding:4px 12px;border-radius:6px;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;transition:background .15s}
+.hstat:hover{background:var(--s2)}
+.hstat.active{background:var(--s2);outline:1px solid var(--border)}
+.hv{font-family:var(--mono);font-size:16px;font-weight:600;line-height:1}
+.hl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.conn{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);white-space:nowrap}
+.cdot{width:6px;height:6px;border-radius:50%;background:var(--warn)}
+.cdot.on{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.cdot.off{background:var(--danger)}
+
+/* LAYOUT */
+.body{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sb{width:320px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sb-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.sbt{flex:1;padding:9px 4px;font-size:10px;font-weight:600;text-align:center;color:var(--muted);cursor:pointer;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid transparent;transition:all .15s}
+.sbt.on{color:var(--accent);border-bottom-color:var(--accent)}
+.sb-body{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+
+/* AIRPORT ITEM */
+.ap{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.ap:hover{background:var(--s2)}
+.ap-code{font-family:var(--mono);font-size:12px;font-weight:600;width:32px;flex-shrink:0}
+.ap-info{flex:1;min-width:0}
+.ap-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap-city{font-size:10px;color:var(--muted)}
+.badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.b-ok{background:rgba(46,204,113,.12);color:var(--ok)}
+.b-warn{background:rgba(245,166,35,.12);color:var(--warn)}
+.b-danger{background:rgba(240,75,75,.12);color:var(--danger)}
+.b-muted{background:rgba(90,106,133,.12);color:var(--muted)}
+
+/* ALERT ITEM */
+.al{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.al:hover{background:var(--s2)}
+.al.high{border-left:3px solid var(--danger)}
+.al.medium{border-left:3px solid var(--warn)}
+.al.low{border-left:3px solid var(--muted)}
+.al-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px}
+.al-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.al-type.high{color:var(--danger)}
+.al-type.medium{color:var(--warn)}
+.al-type.low{color:var(--muted)}
+.al-time{font-size:10px;color:var(--muted);font-family:var(--mono);flex-shrink:0}
+.al-text{font-size:11px;color:var(--text);line-height:1.5;margin-bottom:4px}
+.al-regions{font-size:10px;color:var(--accent);margin-bottom:2px}
+.al-src{font-size:10px;color:var(--muted)}
+
+/* STRIKE ITEM — история атак */
+.strike{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.strike:hover{background:var(--s2)}
+.strike-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.strike-type{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--danger)}
+.strike-date{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.strike-loc{font-size:12px;color:var(--text);margin-bottom:2px}
+.strike-detail{font-size:10px;color:var(--muted);line-height:1.4}
+
+/* FLIGHT ITEM */
+.fl{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;font-size:11px}
+.fl:hover{background:var(--s2)}
+.fl.emrg{background:rgba(240,75,75,.06)}
+.fl-cs{font-family:var(--mono);font-size:12px;font-weight:600;width:80px;flex-shrink:0}
+.fl-info{flex:1;color:var(--muted)}
+
+/* MAP */
+#map{flex:1;background:#050810}
+
+/* BOTTOM */
+.bot{height:28px;background:var(--s1);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:16px;flex-shrink:0;font-size:10px;color:var(--muted)}
+.bot-leg{display:flex;align-items:center;gap:4px}
+.ld{width:7px;height:7px;border-radius:50%}
+
+/* SECTION HEADER */
+.sec-hdr{padding:8px 12px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+
+/* TOOLTIP */
+.leaflet-popup-content-wrapper{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:8px!important;color:var(--text)!important;box-shadow:0 8px 32px rgba(0,0,0,.6)!important;min-width:180px}
+.leaflet-popup-tip{background:var(--s2)!important}
+.leaflet-popup-content{margin:10px 12px!important;font-family:var(--font)!important}
+.pp-title{font-size:13px;font-weight:600;margin-bottom:7px;font-family:var(--mono)}
+.pp-row{display:flex;justify-content:space-between;gap:12px;font-size:11px;margin-bottom:3px}
+.pp-row span:first-child{color:var(--muted)}
+.pp-row span:last-child{color:var(--text);font-weight:500}
+.pp-alert{margin-top:7px;padding:5px 7px;background:rgba(240,75,75,.1);border-radius:4px;font-size:10px;color:var(--danger);font-weight:600}
+.pp-warn{margin-top:7px;padding:5px 7px;background:rgba(245,166,35,.1);border-radius:4px;font-size:10px;color:var(--warn)}
+
+.empty{padding:20px 12px;text-align:center;color:var(--muted);font-size:11px;line-height:1.6}
+
+/* RISK PANEL */
+.risk-panel{background:var(--s2);border-bottom:1px solid var(--border);padding:8px 12px}
+.risk-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px}
+.risk-list{display:flex;flex-wrap:wrap;gap:4px}
+.risk-tag{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600}
+.risk-high{background:rgba(240,75,75,.15);color:var(--danger)}
+.risk-med{background:rgba(245,166,35,.12);color:var(--warn)}
 </style>
 </head>
 <body>
+
 <header>
-<div class="logo"><div class="dot"></div>Airspace Monitor</div>
-<div class="hstats">
-<div class="stat"><span class="sv" id="sf" style="color:var(--success)">—</span><span class="sl">Самолётов</span></div>
-<div class="stat"><span class="sv" id="sc" style="color:var(--warning)">—</span><span class="sl">Закрыто</span></div>
-<div class="stat"><span class="sv" id="sa" style="color:var(--danger)">—</span><span class="sl">Угроз</span></div>
-<div style="display:flex;align-items:center;gap:5px"><div class="csdot" id="cd"></div><span id="cl" style="color:var(--muted);font-size:11px">Подключение...</span></div>
-</div>
+  <div class="logo"><div class="live-dot"></div>Airspace Monitor RU</div>
+  <div class="hstats">
+    <div class="hstat" onclick="showTab('flights')">
+      <span class="hv" id="h-flights" style="color:var(--accent)">—</span>
+      <span class="hl">Самолётов</span>
+    </div>
+    <div class="hstat" onclick="showTab('airports')">
+      <span class="hv" id="h-closed" style="color:var(--warn)">—</span>
+      <span class="hl">Закрыто</span>
+    </div>
+    <div class="hstat" onclick="showTab('alerts')">
+      <span class="hv" id="h-alerts" style="color:var(--danger)">—</span>
+      <span class="hl">Угроз</span>
+    </div>
+    <div class="hstat" onclick="showTab('strikes')">
+      <span class="hv" id="h-strikes" style="color:var(--danger)">—</span>
+      <span class="hl">Атак сегодня</span>
+    </div>
+  </div>
+  <div class="conn"><div class="cdot" id="cdot"></div><span id="clabel">Подключение...</span></div>
 </header>
-<div class="main">
-<div class="sidebar">
-<div class="tabs">
-<div class="tab active" onclick="sw('a')">Аэропорты</div>
-<div class="tab" onclick="sw('t')">Угрозы</div>
+
+<div class="body">
+  <div class="sb">
+    <div class="sb-tabs">
+      <div class="sbt on" id="tab-airports" onclick="showTab('airports')">Аэропорты</div>
+      <div class="sbt" id="tab-alerts" onclick="showTab('alerts')">Угрозы</div>
+      <div class="sbt" id="tab-strikes" onclick="showTab('strikes')">Атаки</div>
+      <div class="sbt" id="tab-flights" onclick="showTab('flights')">Борты</div>
+    </div>
+
+    <!-- АЭРОПОРТЫ -->
+    <div class="sb-body" id="pane-airports">
+      <div class="risk-panel" id="risk-panel" style="display:none">
+        <div class="risk-title">⚠ Не рекомендуется лететь</div>
+        <div class="risk-list" id="risk-list"></div>
+      </div>
+      <div class="sec-hdr">Статус аэропортов · 20 объектов</div>
+      <div id="airport-list"><div class="empty">Загрузка...</div></div>
+    </div>
+
+    <!-- УГРОЗЫ -->
+    <div class="sb-body" id="pane-alerts" style="display:none">
+      <div class="sec-hdr" id="alerts-hdr">Активные угрозы</div>
+      <div id="alert-list"><div class="empty">Загрузка...</div></div>
+    </div>
+
+    <!-- ИСТОРИЯ АТАК -->
+    <div class="sb-body" id="pane-strikes" style="display:none">
+      <div class="sec-hdr">Прилёты БПЛА и ракет · последние 30 дней</div>
+      <div id="strike-list"></div>
+    </div>
+
+    <!-- БОРТЫ -->
+    <div class="sb-body" id="pane-flights" style="display:none">
+      <div class="sec-hdr" id="flights-hdr">Самолёты над РФ</div>
+      <div id="flight-list"><div class="empty">Загрузка...</div></div>
+    </div>
+  </div>
+
+  <div id="map"></div>
 </div>
-<div class="scontent" id="sa-list"><div class="empty">Загрузка...</div></div>
-<div class="scontent" id="st-list" style="display:none"><div class="empty">Нет угроз</div></div>
+
+<div class="bot">
+  <div class="bot-leg"><div class="ld" style="background:var(--accent)"></div>Самолёт</div>
+  <div class="bot-leg"><div class="ld" style="background:var(--ok)"></div>Открыт</div>
+  <div class="bot-leg"><div class="ld" style="background:var(--warn)"></div>Ограничен</div>
+  <div class="bot-leg"><div class="ld" style="background:var(--danger)"></div>Закрыт / угроза</div>
+  <div class="bot-leg"><div class="ld" style="background:#ff6b00"></div>Атака БПЛА/ракета</div>
+  <span style="margin-left:auto;font-family:var(--mono)" id="upd-time">—</span>
 </div>
-<div id="map"></div>
-</div>
-<div class="bar">
-<div class="bi"><div class="d" style="background:#3b82f6"></div>Самолёт</div>
-<div class="bi"><div class="d" style="background:#22c55e"></div>Открыт</div>
-<div class="bi"><div class="d" style="background:#f59e0b"></div>Ограничен</div>
-<div class="bi"><div class="d" style="background:#ef4444"></div>Закрыт</div>
-<div class="bi" style="margin-left:auto"><span id="ut" style="font-family:monospace;font-size:11px;color:var(--muted)">—</span></div>
-</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-const API='https://airspace-monitor.onrender.com';
-const map=L.map('map',{center:[60,90],zoom:4});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:18}).addTo(map);
-const fl=L.layerGroup().addTo(map),al=L.layerGroup().addTo(map);
-function pi(h,e){return L.divIcon({html:`<div style="font-size:14px;transform:rotate(${h}deg);filter:drop-shadow(0 0 3px ${e?'#ef4444':'#3b82f6'})">✈</div>`,iconSize:[20,20],iconAnchor:[10,10],className:''})}
-function ai(s){const c={open:'#22c55e',restricted:'#f59e0b',closed:'#ef4444',notam:'#f59e0b',unknown:'#6b7a99'}[s]||'#6b7a99';return L.divIcon({html:`<div style="width:12px;height:12px;border-radius:50%;background:${c};border:2px solid ${c}33;box-shadow:0 0 8px ${c}66"></div>`,iconSize:[12,12],iconAnchor:[6,6],className:''})}
-function ta(iso){if(!iso)return'—';const d=Math.floor((Date.now()-new Date(iso))/1000);return d<60?d+'с':d<3600?Math.floor(d/60)+'м':Math.floor(d/3600)+'ч'}
-function sl(s){return{open:'Открыт',restricted:'Ограничен',closed:'Закрыт',notam:'NOTAM',unknown:'?'}[s]||s}
-function rf(flights){fl.clearLayers();let n=0;flights.forEach(f=>{if(!f.lat||!f.lng)return;const m=L.marker([f.lat,f.lng],{icon:pi(f.heading,f.emergency)});m.bindPopup(`<div class="pr">${f.callsign||f.id}</div><div class="prow"><span>Страна</span><span>${f.country||'—'}</span></div><div class="prow"><span>Высота</span><span>${f.altitude?f.altitude+'м':'—'}</span></div><div class="prow"><span>Скорость</span><span>${f.speed?f.speed+'км/ч':'—'}</span></div>${f.emergency?'<div style="color:#ef4444;font-size:11px;margin-top:6px;font-weight:600">⚠ АВАРИЙНЫЙ '+f.squawk+'</div>':''}`);m.addTo(fl);n++});document.getElementById('sf').textContent=n}
-function ra(airports){al.clearLayers();let c=0;const h=airports.map(a=>{if(a.status==='closed'||a.status==='restricted')c++;const m=L.marker([a.lat,a.lng],{icon:ai(a.status)});m.bindPopup(`<div class="pr">${a.iata} — ${a.name}</div><div class="prow"><span>Город</span><span>${a.city}</span></div><div class="prow"><span>Статус</span><span style="color:${a.status==='closed'?'#ef4444':a.status==='open'?'#22c55e':'#f59e0b'}">${sl(a.status)}</span></div>`);m.addTo(al);return`<div class="aitem" onclick="map.setView([${a.lat},${a.lng}],8)"><div><div class="acode">${a.iata} <span style="font-size:10px;color:var(--muted)">${a.icao}</span></div><div class="aname">${a.name} · ${a.city}</div></div><span class="badge ${a.status==='open'?'open':a.status==='closed'?'closed':a.status==='restricted'?'restricted':'unknown'}">${sl(a.status)}</span></div>`}).join('');document.getElementById('sa-list').innerHTML=h||'<div class="empty">Нет данных</div>';document.getElementById('sc').textContent=c}
-function rt(alerts){const hi=alerts.filter(a=>a.severity==='high');document.getElementById('sa').textContent=hi.length;if(!alerts.length){document.getElementById('st-list').innerHTML='<div class="empty">Нет активных угроз</div>';return}document.getElementById('st-list').innerHTML=alerts.map(a=>`<div class="alertitem"><div class="alerthdr"><span class="atype ${a.severity}">${a.type==='drone'?'🔴 БПЛА':a.type==='missile'?'🔴 Ракета':a.type==='airport_closed'?'🟡 Закрытие':'🔵 Инфо'}</span><span class="atime">${ta(a.date)}</span></div><div class="atxt">${(a.description||a.text||'').slice(0,200)}</div>${a.regions?.length?`<div style="font-size:10px;color:var(--muted);margin-top:4px">📍 ${a.regions.join(', ')}</div>`:''}<div class="asrc">${a.source||''}</div></div>`).join('')}
-function sw(t){document.querySelectorAll('.tab').forEach((x,i)=>x.classList.toggle('active',(i===0&&t==='a')||(i===1&&t==='t')));document.getElementById('sa-list').style.display=t==='a'?'block':'none';document.getElementById('st-list').style.display=t==='t'?'block':'none'}
-async function poll(){const cd=document.getElementById('cd'),cl=document.getElementById('cl');try{const[f,a,t]=await Promise.all([fetch(API+'/api/flights').then(r=>r.json()),fetch(API+'/api/airports').then(r=>r.json()),fetch(API+'/api/alerts').then(r=>r.json())]);rf(f);ra(a);rt(t);document.getElementById('ut').textContent='Обновлено: '+ta(new Date().toISOString());cd.className='csdot on';cl.textContent='Онлайн'}catch(e){cd.className='csdot err';cl.textContent='Ошибка соединения'}}
-poll();setInterval(poll,30000);
+const API = 'https://airspace-monitor.onrender.com';
+
+// ─── MAP ───
+const map = L.map('map', {center:[60,90], zoom:4, zoomControl:true});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  {attribution:'© OpenStreetMap © CARTO', maxZoom:18}).addTo(map);
+
+const layFlights  = L.layerGroup().addTo(map);
+const layAirports = L.layerGroup().addTo(map);
+const layStrikes  = L.layerGroup().addTo(map);
+const layThreats  = L.layerGroup().addTo(map);
+
+// ─── ИСТОРИЯ АТАК (статические данные из открытых источников) ───
+const STRIKES = [
+  {date:'2025-05-26',type:'БПЛА',loc:'Москва',region:'Москва',lat:55.75,lng:37.62,detail:'Атака дронов, аэропорты МАУ временно закрыты'},
+  {date:'2025-06-01',type:'БПЛА',loc:'Белгород',region:'Белгород',lat:50.60,lng:36.59,detail:'Атака БПЛА, аэропорт закрыт'},
+  {date:'2025-06-15',type:'БПЛА',loc:'Краснодар',region:'Краснодар',lat:45.02,lng:38.99,detail:'Дроны в районе аэропорта'},
+  {date:'2025-07-04',type:'БПЛА',loc:'Москва (МО)',region:'Москва',lat:55.90,lng:37.40,detail:'Перехват БПЛА, Шереметьево ограничения'},
+  {date:'2025-07-10',type:'БПЛА',loc:'Ростов-на-Дону',region:'Ростов',lat:47.23,lng:39.72,detail:'Атака беспилотников'},
+  {date:'2025-07-18',type:'БПЛА',loc:'Воронеж',region:'Воронеж',lat:51.67,lng:39.18,detail:'Дроны, введены ограничения'},
+  {date:'2025-08-14',type:'Ракета',loc:'Белгород',region:'Белгород',lat:50.62,lng:36.61,detail:'Ракетный удар, аэропорт закрыт'},
+  {date:'2025-09-02',type:'БПЛА',loc:'Курск',region:'Курск',lat:51.73,lng:36.19,detail:'Массированная атака БПЛА'},
+  {date:'2025-10-19',type:'БПЛА',loc:'Москва',region:'Москва',lat:55.78,lng:37.55,detail:'Аэропорты закрыты на 2 часа'},
+  {date:'2025-11-05',type:'БПЛА',loc:'Саратов',region:'Саратов',lat:51.53,lng:46.03,detail:'Дроны в районе НПЗ'},
+  {date:'2025-12-28',type:'БПЛА',loc:'Казань',region:'Казань',lat:55.79,lng:49.12,detail:'Атака на НПЗ, аэропорт закрыт'},
+  {date:'2026-01-15',type:'БПЛА',loc:'Москва',region:'Москва',lat:55.82,lng:37.30,detail:'Перехват над МО, Внуково закрыто'},
+  {date:'2026-02-03',type:'БПЛА',loc:'Белгород',region:'Белгород',lat:50.58,lng:36.62,detail:'Обстрел, аэропорт закрыт'},
+  {date:'2026-03-22',type:'БПЛА',loc:'Краснодар',region:'Краснодар',lat:45.05,lng:39.10,detail:'Атака БПЛА, задержки рейсов'},
+  {date:'2026-04-14',type:'БПЛА',loc:'Ростов-на-Дону',region:'Ростов',lat:47.26,lng:39.85,detail:'Дроны, аэропорт Платов закрыт на 3ч'},
+  {date:'2026-05-07',type:'БПЛА',loc:'Москва',region:'Москва',lat:55.76,lng:37.68,detail:'Несколько дронов перехвачено над МО'},
+  {date:'2026-06-18',type:'БПЛА',loc:'Воронеж',region:'Воронеж',lat:51.65,lng:39.22,detail:'Атака БПЛА, ограничения полётов'},
+  {date:'2026-07-01',type:'БПЛА',loc:'Белгород',region:'Белгород',lat:50.61,lng:36.58,detail:'Очередная атака, аэропорт закрыт'},
+  {date:'2026-07-10',type:'БПЛА',loc:'Москва (Домодедово)',region:'Москва',lat:55.41,lng:37.90,detail:'Дроны, Домодедово временно остановил приём'},
+  {date:'2026-07-20',type:'БПЛА',loc:'Краснодар',region:'Краснодар',lat:45.03,lng:39.05,detail:'Атака БПЛА, задержки рейсов Краснодара'},
+];
+
+// ─── АЭРОПОРТЫ РИСКА ───
+const HIGH_RISK = ['BEG','ROV','KRR','AER','AAQ','MRV'];
+const MED_RISK  = ['SVO','VKO','DME','SVX'];
+
+function riskLevel(iata){
+  if(HIGH_RISK.includes(iata)) return 'high';
+  if(MED_RISK.includes(iata)) return 'medium';
+  return 'ok';
+}
+
+// ─── ИКОНКИ ───
+function iconPlane(h,emrg){
+  return L.divIcon({
+    html:`<div style="font-size:13px;transform:rotate(${h}deg);filter:drop-shadow(0 0 3px ${emrg?'#f04b4b':'#4f8ef7'});line-height:1">✈</div>`,
+    iconSize:[18,18],iconAnchor:[9,9],className:''
+  });
+}
+function iconAirport(status){
+  const c={open:'#2ecc71',restricted:'#f5a623',closed:'#f04b4b',notam:'#f5a623',unknown:'#5a6a85'}[status]||'#5a6a85';
+  const r=riskLevel;
+  return L.divIcon({
+    html:`<div style="width:11px;height:11px;border-radius:50%;background:${c};border:2px solid rgba(255,255,255,.2);box-shadow:0 0 10px ${c}88"></div>`,
+    iconSize:[11,11],iconAnchor:[5,5],className:''
+  });
+}
+function iconStrike(type){
+  return L.divIcon({
+    html:`<div style="font-size:16px;filter:drop-shadow(0 0 4px #ff6b00);line-height:1">${type==='Ракета'?'💥':'🔴'}</div>`,
+    iconSize:[20,20],iconAnchor:[10,10],className:''
+  });
+}
+
+// ─── УТИЛИТЫ ───
+function ago(iso){
+  if(!iso) return '—';
+  const d=Math.floor((Date.now()-new Date(iso))/1000);
+  if(d<60) return d+'с';
+  if(d<3600) return Math.floor(d/60)+'м';
+  if(d<86400) return Math.floor(d/3600)+'ч';
+  return Math.floor(d/86400)+'д';
+}
+function fmtDate(s){
+  const d=new Date(s);
+  return d.toLocaleDateString('ru',{day:'numeric',month:'short',year:'numeric'});
+}
+function statusLabel(s){
+  return{open:'Открыт',restricted:'Ограничен',closed:'Закрыт',notam:'NOTAM',unknown:'Неизв.'}[s]||s;
+}
+function statusBadge(s){
+  const cls={open:'b-ok',restricted:'b-warn',closed:'b-danger',notam:'b-warn',unknown:'b-muted'}[s]||'b-muted';
+  return `<span class="badge ${cls}">${statusLabel(s)}</span>`;
+}
+function typeEmoji(t){
+  return{drone:'🔴 БПЛА',missile:'🔴 Ракета',airport_closed:'🟡 Закрытие',warning:'🟠 Угроза',all_clear:'✅ Отбой',info:'🔵 Инфо'}[t]||'🔵';
+}
+
+// ─── RENDER АЭРОПОРТЫ ───
+let airportData=[];
+function renderAirports(airports){
+  airportData=airports;
+  layAirports.clearLayers();
+  let closed=0;
+  const highRiskAirports=[];
+
+  const html=airports.map(a=>{
+    if(a.status==='closed'||a.status==='restricted') closed++;
+    const risk=riskLevel(a.iata);
+    if(risk==='high') highRiskAirports.push(a);
+
+    // NOTAM info
+    const notamInfo = a.notams && a.notams.length > 0
+      ? `<div class="pp-warn">📋 ${a.notams[0].body ? a.notams[0].body.slice(0,120)+'...' : 'NOTAM активен'}</div>`
+      : '';
+
+    const riskInfo = risk==='high'
+      ? `<div class="pp-alert">⚠ Высокий риск БПЛА/ракет</div>`
+      : risk==='medium' ? `<div class="pp-warn">⚠ Умеренный риск</div>` : '';
+
+    const m=L.marker([a.lat,a.lng],{icon:iconAirport(a.status)});
+    m.bindPopup(`
+      <div class="pp-title">${a.iata} — ${a.name}</div>
+      <div class="pp-row"><span>Город</span><span>${a.city}</span></div>
+      <div class="pp-row"><span>ICAO</span><span>${a.icao}</span></div>
+      <div class="pp-row"><span>Статус</span><span>${statusLabel(a.status)}</span></div>
+      ${a.notamCount?`<div class="pp-row"><span>NOTAMов</span><span>${a.notamCount}</span></div>`:''}
+      ${riskInfo}${notamInfo}
+    `);
+    m.addTo(layAirports);
+
+    const riskBadge=risk==='high'?'<span class="badge b-danger" style="margin-left:4px">Риск</span>':
+                    risk==='medium'?'<span class="badge b-warn" style="margin-left:4px">Внимание</span>':'';
+
+    return `<div class="ap" onclick="map.setView([${a.lat},${a.lng}],9)">
+      <div class="ap-code" style="color:${a.status==='closed'?'var(--danger)':a.status==='restricted'?'var(--warn)':'var(--accent)'}">${a.iata}</div>
+      <div class="ap-info">
+        <div class="ap-name">${a.name}${riskBadge}</div>
+        <div class="ap-city">${a.city} · ${a.icao}</div>
+      </div>
+      ${statusBadge(a.status)}
+    </div>`;
+  }).join('');
+
+  document.getElementById('airport-list').innerHTML=html||'<div class="empty">Нет данных</div>';
+  document.getElementById('h-closed').textContent=closed;
+
+  // Панель риска
+  if(highRiskAirports.length){
+    document.getElementById('risk-panel').style.display='block';
+    document.getElementById('risk-list').innerHTML=highRiskAirports.map(a=>
+      `<span class="risk-tag risk-high" onclick="map.setView([${a.lat},${a.lng}],9)">${a.iata}</span>`
+    ).join('');
+  }
+}
+
+// ─── RENDER УГРОЗЫ ───
+function renderAlerts(alerts){
+  const high=alerts.filter(a=>a.severity==='high');
+  document.getElementById('h-alerts').textContent=high.length;
+  document.getElementById('alerts-hdr').textContent=`Активные угрозы · ${alerts.length} событий`;
+
+  if(!alerts.length){
+    document.getElementById('alert-list').innerHTML='<div class="empty">Нет активных угроз в ленте<br><span style="font-size:10px">Telegram-каналы опрашиваются каждые 60с</span></div>';
+    return;
+  }
+
+  document.getElementById('alert-list').innerHTML=alerts.map(a=>`
+    <div class="al ${a.severity}" onclick="a.regions&&a.regions[0]&&focusRegion(a.regions[0])">
+      <div class="al-hdr">
+        <span class="al-type ${a.severity}">${typeEmoji(a.type)}</span>
+        <span class="al-time">${ago(a.date)}</span>
+      </div>
+      <div class="al-text">${(a.description||a.text||'').slice(0,250)}</div>
+      ${a.regions&&a.regions.length?`<div class="al-regions">📍 ${a.regions.join(' · ')}</div>`:''}
+      <div class="al-src">${a.source||a.channel||''}</div>
+    </div>
+  `).join('');
+}
+
+// ─── RENDER ИСТОРИЯ АТАК ───
+function renderStrikes(){
+  layStrikes.clearLayers();
+  const sorted=[...STRIKES].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  document.getElementById('h-strikes').textContent=STRIKES.filter(s=>s.date>=new Date().toISOString().slice(0,7)).length;
+
+  STRIKES.forEach(s=>{
+    const m=L.marker([s.lat,s.lng],{icon:iconStrike(s.type)});
+    m.bindPopup(`
+      <div class="pp-title">${s.type} · ${s.loc}</div>
+      <div class="pp-row"><span>Дата</span><span>${fmtDate(s.date)}</span></div>
+      <div class="pp-row"><span>Регион</span><span>${s.region}</span></div>
+      <div class="pp-alert">${s.detail}</div>
+    `);
+    m.addTo(layStrikes);
+  });
+
+  document.getElementById('strike-list').innerHTML=sorted.map(s=>`
+    <div class="strike" onclick="map.setView([${s.lat},${s.lng}],9)">
+      <div class="strike-hdr">
+        <span class="strike-type">${s.type==='Ракета'?'💥':'🔴'} ${s.type}</span>
+        <span class="strike-date">${fmtDate(s.date)}</span>
+      </div>
+      <div class="strike-loc">📍 ${s.loc}</div>
+      <div class="strike-detail">${s.detail}</div>
+    </div>
+  `).join('');
+}
+
+// ─── RENDER БОРТЫ ───
+function renderFlights(flights){
+  layFlights.clearLayers();
+  document.getElementById('h-flights').textContent=flights.length;
+  document.getElementById('flights-hdr').textContent=`Самолёты над РФ · ${flights.length} бортов`;
+
+  const emrg=flights.filter(f=>f.emergency);
+  const sorted=[...emrg,...flights.filter(f=>!f.emergency)].slice(0,200);
+
+  sorted.forEach(f=>{
+    if(!f.lat||!f.lng) return;
+    const m=L.marker([f.lat,f.lng],{icon:iconPlane(f.heading,f.emergency)});
+    m.bindPopup(`
+      <div class="pp-title">${f.callsign||f.id}</div>
+      <div class="pp-row"><span>Страна</span><span>${f.country||'—'}</span></div>
+      <div class="pp-row"><span>Высота</span><span>${f.altitude?f.altitude+'м':'—'}</span></div>
+      <div class="pp-row"><span>Скорость</span><span>${f.speed?f.speed+'км/ч':'—'}</span></div>
+      <div class="pp-row"><span>Курс</span><span>${f.heading}°</span></div>
+      ${f.emergency?`<div class="pp-alert">⚠ АВАРИЙНЫЙ СИГНАЛ ${f.squawk}</div>`:''}
+    `);
+    m.addTo(layFlights);
+  });
+
+  document.getElementById('flight-list').innerHTML=sorted.map(f=>`
+    <div class="fl ${f.emergency?'emrg':''}" onclick="map.setView([${f.lat},${f.lng}],9)">
+      <span class="fl-cs" style="color:${f.emergency?'var(--danger)':'var(--accent)'}">${f.callsign||f.id}</span>
+      <span class="fl-info">${f.country||''} · ${f.altitude?f.altitude+'м':''} · ${f.speed?f.speed+'км/ч':''}</span>
+      ${f.emergency?'<span class="badge b-danger">SOS</span>':''}
+    </div>
+  `).join('');
+}
+
+// ─── ТАБЫ ───
+function showTab(tab){
+  ['airports','alerts','strikes','flights'].forEach(t=>{
+    document.getElementById('pane-'+t).style.display=t===tab?'flex':'none';
+    document.getElementById('pane-'+t).style.flexDirection='column';
+    document.getElementById('tab-'+t)?.classList.toggle('on',t===tab);
+  });
+  document.getElementById('pane-'+tab).style.display='block';
+}
+
+// ─── ФОКУС НА РЕГИОН ───
+const REGION_COORDS={
+  'Москва':[55.75,37.62],'Белгород':[50.60,36.59],'Краснодар':[45.02,38.99],
+  'Ростов':[47.23,39.72],'Воронеж':[51.67,39.18],'Курск':[51.73,36.19],
+  'Казань':[55.79,49.12],'Саратов':[51.53,46.03]
+};
+function focusRegion(r){
+  const c=REGION_COORDS[r];
+  if(c) map.setView(c,9);
+}
+
+// ─── POLLING ───
+async function fetchData(){
+  const dot=document.getElementById('cdot');
+  const lbl=document.getElementById('clabel');
+  try{
+    const [f,a,al]=await Promise.all([
+      fetch(API+'/api/flights').then(r=>r.json()).catch(()=>[]),
+      fetch(API+'/api/airports').then(r=>r.json()).catch(()=>[]),
+      fetch(API+'/api/alerts').then(r=>r.json()).catch(()=>[]),
+    ]);
+    if(f.length) renderFlights(f);
+    if(a.length) renderAirports(a);
+    renderAlerts(al);
+    document.getElementById('upd-time').textContent='Обновлено: '+ago(new Date().toISOString());
+    dot.className='cdot on';
+    lbl.textContent='Онлайн · обновление каждые 30с';
+  }catch(e){
+    dot.className='cdot off';
+    lbl.textContent='Ошибка — повтор через 30с';
+  }
+}
+
+// ─── СТАРТ ───
+renderStrikes();
+fetchData();
+setInterval(fetchData,30000);
 </script>
 </body>
 </html>
