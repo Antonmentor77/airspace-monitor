@@ -118,6 +118,7 @@ const RUSSIA_AIRPORTS = [
   { icao: 'UNKL', iata: 'KJA', name: 'Емельяново', city: 'Красноярск', lat: 56.17, lng: 92.49 },
   { icao: 'UIAA', iata: 'IKT', name: 'Иркутск', city: 'Иркутск', lat: 52.27, lng: 104.39 },
   { icao: 'URMO', iata: 'MRV', name: 'Минводы', city: 'Минеральные Воды', lat: 44.22, lng: 43.08 },
+  { icao: 'URWW', iata: 'VOG', name: 'Гумрак', city: 'Волгоград', lat: 48.78, lng: 44.35 },
 ];
 
 module.exports = { fetchFlights, RUSSIA_AIRPORTS };
