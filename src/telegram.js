@@ -26,7 +26,8 @@ const CHANNELS = [
 ];
 
 // Публичный инстанс RSSHub (или self-hosted: process.env.RSSHUB_URL)
-const RSSHUB_BASE = process.env.RSSHUB_URL || 'https://rsshub.app';
+const TELEGRAM_FEED_BASE =
+  process.env.TELEGRAM_FEED_URL || 'https://tg-rss.contractsguard.com/feed';
 
 // Ключевые слова для классификации угроз
 const THREAT_KEYWORDS = {
@@ -70,67 +71,80 @@ function severityFromType(type) {
   return map[type] || 'low';
 }
 
-async function parseRSSFeed(url) {
+async function parseTelegramFeed(channelHandle) {
+  const url = `${TELEGRAM_FEED_BASE}/${channelHandle}`;
+
   const resp = await fetch(url, {
-    headers: { 'Accept': 'application/rss+xml, application/xml, text/xml' },
-    signal: AbortSignal.timeout(8000),
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'AirspaceMonitor/1.0',
+    },
+    signal: AbortSignal.timeout(10000),
   });
 
-  if (!resp.ok) throw new Error(`RSS fetch failed: ${resp.status}`);
-  const xml = await resp.text();
-
-  // Простой XML парсер для RSS items
-  const items = [];
-  const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
-
-  for (const match of itemMatches) {
-    const item = match[1];
-
-    const titleMatch = item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) ||
-                       item.match(/<title>([\s\S]*?)<\/title>/);
-    const descMatch = item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) ||
-                      item.match(/<description>([\s\S]*?)<\/description>/);
-    const dateMatch = item.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
-    const linkMatch = item.match(/<link>([\s\S]*?)<\/link>/);
-
-    const text = (titleMatch?.[1] || '') + ' ' + (descMatch?.[1] || '');
-    const cleanText = text.replace(/<[^>]+>/g, '').trim();
-
-    if (cleanText.length > 10) {
-      items.push({
-        text: cleanText,
-        date: dateMatch ? new Date(dateMatch[1]).toISOString() : new Date().toISOString(),
-        link: linkMatch?.[1] || '',
-      });
-    }
+  if (!resp.ok) {
+    throw new Error(`Telegram feed failed: ${resp.status}`);
   }
 
-  return items.slice(0, 10); // последние 10 сообщений
+  const data = await resp.json();
+
+  const items = Array.isArray(data)
+    ? data
+    : Array.isArray(data.items)
+      ? data.items
+      : [];
+
+  return items.slice(0, 20).map(item => {
+    const rawText =
+      item.content ||
+      item.description ||
+      item.title ||
+      '';
+
+    const cleanText = rawText
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<\/p>/gi, '\n')
+  .replace(/<[^>]*>/g, '')
+  .replace(/&nbsp;/gi, ' ')
+  .replace(/&amp;/gi, '&')
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&#39;/gi, "'")
+  .replace(/&quot;/gi, '"')
+  .replace(/\n\s*\n+/g, '\n')
+  .replace(/[ \t]+/g, ' ')
+  .trim();
+
+    return {
+      text: cleanText,
+      date: item.created || item.pubDate || item.date || new Date().toISOString(),
+      link: item.link || item.id || '',
+    };
+  });
 }
 
-async function fetchTelegramAlerts() {
+          async function fetchTelegramAlerts() {
   const alerts = [];
   const now = Date.now();
   const SIX_HOURS = 6 * 60 * 60 * 1000;
 
   for (const channel of CHANNELS) {
     try {
-      const rssUrl = `${RSSHUB_BASE}/telegram/channel/${channel.handle}`;
-      const items = await parseRSSFeed(rssUrl);
+      const items = await parseTelegramFeed(channel.handle);
 
       for (const item of items) {
         const type = classifyText(item.text);
         const regions = extractRegions(item.text);
         const itemDate = new Date(item.date).getTime();
 
-        // Только свежие (< 6 часов)
+        // Только свежие сообщения — последние 6 часов
         if (now - itemDate > SIX_HOURS) continue;
 
         alerts.push({
           id: `tg_${channel.handle}_${itemDate}`,
           source: channel.name,
           channel: `@${channel.handle}`,
-          text: item.text.slice(0, 300), // обрезаем длинные тексты
+          text: item.text.slice(0, 300),
           type,
           severity: severityFromType(type),
           regions,
@@ -139,12 +153,18 @@ async function fetchTelegramAlerts() {
         });
       }
     } catch (err) {
-      console.warn(`[telegram] Ошибка канала @${channel.handle}:`, err.message);
+      console.warn(
+        `[telegram] Ошибка канала @${channel.handle}:`,
+        err.message
+      );
     }
   }
 
-  // Сортируем по дате, самые свежие первыми
-  return alerts.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Самые свежие сообщения первыми
+  return alerts.sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 }
+
 
 module.exports = { fetchTelegramAlerts };

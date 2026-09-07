@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const path = require('path');
 const { fetchFlights } = require('./opensky');
 const { fetchNotams } = require('./notams');
 const { fetchTelegramAlerts } = require('./telegram');
@@ -15,6 +16,7 @@ const io = new Server(server, {
 });
 
 app.use(cors());
+app.use(express.static(path.join(__dirname, '../frontend')));
 app.use(express.json());
 
 // --- Кеш данных ---
@@ -56,7 +58,10 @@ async function updateData() {
       fetchTelegramAlerts(),
     ]);
 
-    const flightData = flights.status === 'fulfilled' ? flights.value : cache.flights;
+    const flightData = 
+  flights.status === 'fulfilled' && Array.isArray(flights.value)
+    ? flights.value
+    : []
     const notamData = notams.status === 'fulfilled' ? notams.value : cache.airports;
     const alertData = telegramAlerts.status === 'fulfilled' ? telegramAlerts.value : [];
 

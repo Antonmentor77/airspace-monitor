@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airspace Monitor — Мониторинг воздушного пространства РФ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:rgba(255,255,255,0.08);--text:#e8edf5;--muted:#6b7a99;--accent:#3b82f6;--danger:#ef4444;--warning:#f59e0b;--success:#22c55e}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 8px var(--success);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hstats{display:flex;gap:20px;align-items:center}
+.stat{display:flex;flex-direction:column;align-items:flex-end}
+.sv{font-family:monospace;font-size:15px;font-weight:500}
+.sl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.main{display:flex;flex:1;overflow:hidden}
+.sidebar{width:280px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--border)}
+.tab{flex:1;padding:10px 0;font-size:11px;font-weight:500;text-align:center;color:var(--muted);cursor:pointer;text-transform:uppercase;border-bottom:2px solid transparent}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.scontent{flex:1;overflow-y:auto}
+.aitem{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer}
+.aitem:hover{background:var(--surface2)}
+.acode{font-family:monospace;font-size:13px;font-weight:500}
+.aname{font-size:11px;color:var(--muted);margin-top:2px}
+.badge{font-size:10px;font-weight:600;padding:3px 7px;border-radius:4px;text-transform:uppercase}
+.open{background:rgba(34,197,94,.15);color:var(--success)}
+.restricted{background:rgba(245,158,11,.15);color:var(--warning)}
+.closed{background:rgba(239,68,68,.15);color:var(--danger)}
+.unknown{background:rgba(107,122,153,.15);color:var(--muted)}
+.alertitem{padding:10px 14px;border-bottom:1px solid var(--border)}
+.alerthdr{display:flex;justify-content:space-between;margin-bottom:4px}
+.atype{font-size:10px;font-weight:600;text-transform:uppercase}
+.atype.high{color:var(--danger)}.atype.medium{color:var(--warning)}.atype.low{color:var(--muted)}
+.atime{font-size:10px;color:var(--muted);font-family:monospace}
+.atxt{font-size:12px;line-height:1.5}
+.asrc{font-size:10px;color:var(--accent);margin-top:4px}
+#map{flex:1;background:#0d1117}
+.bar{height:32px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:20px;flex-shrink:0}
+.bi{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.d{width:8px;height:8px;border-radius:50%}
+.empty{padding:24px 14px;text-align:center;color:var(--muted);font-size:12px}
+.csdot{width:6px;height:6px;border-radius:50%;background:var(--warning)}
+.csdot.on{background:var(--success);box-shadow:0 0 6px var(--success)}
+.csdot.err{background:var(--danger)}
+.leaflet-container{background:#0d1117!important}
+.leaflet-popup-content-wrapper{background:#1a2235!important;border:1px solid rgba(255,255,255,0.08)!important;border-radius:8px!important;color:#e8edf5!important}
+.leaflet-popup-tip{background:#1a2235!important}
+.pr{font-size:13px;font-weight:600;margin-bottom:6px;font-family:monospace}
+.prow{display:flex;justify-content:space-between;font-size:11px;color:#6b7a99;margin-bottom:3px}
+.prow span:last-child{color:#e8edf5}
+</style>
+</head>
+<body>
+<header>
+<div class="logo"><div class="dot"></div>Airspace Monitor</div>
+<div class="hstats">
+<div class="stat"><span class="sv" id="sf" style="color:var(--success)">—</span><span class="sl">Самолётов</span></div>
+<div class="stat"><span class="sv" id="sc" style="color:var(--warning)">—</span><span class="sl">Закрыто</span></div>
+<div class="stat"><span class="sv" id="sa" style="color:var(--danger)">—</span><span class="sl">Угроз</span></div>
+<div style="display:flex;align-items:center;gap:5px"><div class="csdot" id="cd"></div><span id="cl" style="color:var(--muted);font-size:11px">Подключение...</span></div>
+</div>
+</header>
+<div class="main">
+<div class="sidebar">
+<div class="tabs">
+<div class="tab active" onclick="sw('a')">Аэропорты</div>
+<div class="tab" onclick="sw('t')">Угрозы</div>
+</div>
+<div class="scontent" id="sa-list"><div class="empty">Загрузка...</div></div>
+<div class="scontent" id="st-list" style="display:none"><div class="empty">Нет угроз</div></div>
+</div>
+<div id="map"></div>
+</div>
+<div class="bar">
+<div class="bi"><div class="d" style="background:#3b82f6"></div>Самолёт</div>
+<div class="bi"><div class="d" style="background:#22c55e"></div>Открыт</div>
+<div class="bi"><div class="d" style="background:#f59e0b"></div>Ограничен</div>
+<div class="bi"><div class="d" style="background:#ef4444"></div>Закрыт</div>
+<div class="bi" style="margin-left:auto"><span id="ut" style="font-family:monospace;font-size:11px;color:var(--muted)">—</span></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const API='https://airspace-monitor.onrender.com';
+const map=L.map('map',{center:[60,90],zoom:4});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:18}).addTo(map);
+const fl=L.layerGroup().addTo(map),al=L.layerGroup().addTo(map);
+function pi(h,e){return L.divIcon({html:`<div style="font-size:14px;transform:rotate(${h}deg);filter:drop-shadow(0 0 3px ${e?'#ef4444':'#3b82f6'})">✈</div>`,iconSize:[20,20],iconAnchor:[10,10],className:''})}
+function ai(s){const c={open:'#22c55e',restricted:'#f59e0b',closed:'#ef4444',notam:'#f59e0b',unknown:'#6b7a99'}[s]||'#6b7a99';return L.divIcon({html:`<div style="width:12px;height:12px;border-radius:50%;background:${c};border:2px solid ${c}33;box-shadow:0 0 8px ${c}66"></div>`,iconSize:[12,12],iconAnchor:[6,6],className:''})}
+function ta(iso){if(!iso)return'—';const d=Math.floor((Date.now()-new Date(iso))/1000);return d<60?d+'с':d<3600?Math.floor(d/60)+'м':Math.floor(d/3600)+'ч'}
+function sl(s){return{open:'Открыт',restricted:'Ограничен',closed:'Закрыт',notam:'NOTAM',unknown:'?'}[s]||s}
+function rf(flights){fl.clearLayers();let n=0;flights.forEach(f=>{if(!f.lat||!f.lng)return;const m=L.marker([f.lat,f.lng],{icon:pi(f.heading,f.emergency)});m.bindPopup(`<div class="pr">${f.callsign||f.id}</div><div class="prow"><span>Страна</span><span>${f.country||'—'}</span></div><div class="prow"><span>Высота</span><span>${f.altitude?f.altitude+'м':'—'}</span></div><div class="prow"><span>Скорость</span><span>${f.speed?f.speed+'км/ч':'—'}</span></div>${f.emergency?'<div style="color:#ef4444;font-size:11px;margin-top:6px;font-weight:600">⚠ АВАРИЙНЫЙ '+f.squawk+'</div>':''}`);m.addTo(fl);n++});document.getElementById('sf').textContent=n}
+function ra(airports){al.clearLayers();let c=0;const h=airports.map(a=>{if(a.status==='closed'||a.status==='restricted')c++;const m=L.marker([a.lat,a.lng],{icon:ai(a.status)});m.bindPopup(`<div class="pr">${a.iata} — ${a.name}</div><div class="prow"><span>Город</span><span>${a.city}</span></div><div class="prow"><span>Статус</span><span style="color:${a.status==='closed'?'#ef4444':a.status==='open'?'#22c55e':'#f59e0b'}">${sl(a.status)}</span></div>`);m.addTo(al);return`<div class="aitem" onclick="map.setView([${a.lat},${a.lng}],8)"><div><div class="acode">${a.iata} <span style="font-size:10px;color:var(--muted)">${a.icao}</span></div><div class="aname">${a.name} · ${a.city}</div></div><span class="badge ${a.status==='open'?'open':a.status==='closed'?'closed':a.status==='restricted'?'restricted':'unknown'}">${sl(a.status)}</span></div>`}).join('');document.getElementById('sa-list').innerHTML=h||'<div class="empty">Нет данных</div>';document.getElementById('sc').textContent=c}
+function rt(alerts){const hi=alerts.filter(a=>a.severity==='high');document.getElementById('sa').textContent=hi.length;if(!alerts.length){document.getElementById('st-list').innerHTML='<div class="empty">Нет активных угроз</div>';return}document.getElementById('st-list').innerHTML=alerts.map(a=>`<div class="alertitem"><div class="alerthdr"><span class="atype ${a.severity}">${a.type==='drone'?'🔴 БПЛА':a.type==='missile'?'🔴 Ракета':a.type==='airport_closed'?'🟡 Закрытие':'🔵 Инфо'}</span><span class="atime">${ta(a.date)}</span></div><div class="atxt">${(a.description||a.text||'').slice(0,200)}</div>${a.regions?.length?`<div style="font-size:10px;color:var(--muted);margin-top:4px">📍 ${a.regions.join(', ')}</div>`:''}<div class="asrc">${a.source||''}</div></div>`).join('')}
+function sw(t){document.querySelectorAll('.tab').forEach((x,i)=>x.classList.toggle('active',(i===0&&t==='a')||(i===1&&t==='t')));document.getElementById('sa-list').style.display=t==='a'?'block':'none';document.getElementById('st-list').style.display=t==='t'?'block':'none'}
+async function poll(){const cd=document.getElementById('cd'),cl=document.getElementById('cl');try{const[f,a,t]=await Promise.all([fetch(API+'/api/flights').then(r=>r.json()),fetch(API+'/api/airports').then(r=>r.json()),fetch(API+'/api/alerts').then(r=>r.json())]);rf(f);ra(a);rt(t);document.getElementById('ut').textContent='Обновлено: '+ta(new Date().toISOString());cd.className='csdot on';cl.textContent='Онлайн'}catch(e){cd.className='csdot err';cl.textContent='Ошибка соединения'}}
+poll();setInterval(poll,30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+:root{
+    --bg:#0b1220;
+    --panel:#111827;
+    --panel2:#1f2937;
+    --border:#273549;
+
+    --text:#f3f4f6;
+    --muted:#9ca3af;
+
+    --green:#22c55e;
+    --yellow:#f59e0b;
+    --red:#ef4444;
+    --blue:#3b82f6;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html,body{
+    width:100%;
+    height:100%;
+}
+
+body{
+
+    background:var(--bg);
+
+    color:var(--text);
+
+    font-family:
+            Inter,
+            system-ui,
+            sans-serif;
+
+    overflow:hidden;
+
+}
+
+header{
+
+    height:64px;
+
+    background:var(--panel);
+
+    border-bottom:1px solid var(--border);
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    padding:0 20px;
+
+}
+
+.logo{
+
+    font-size:24px;
+
+    font-weight:700;
+
+}
+
+.status{
+
+    display:flex;
+
+    gap:20px;
+
+    color:var(--muted);
+
+    font-size:14px;
+
+}
+
+.container{
+
+    display:flex;
+
+    height:calc(100vh - 64px);
+
+}
+
+.sidebar{
+
+    width:340px;
+
+    background:var(--panel);
+
+    border-right:1px solid var(--border);
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+#airportSearch{
+
+    margin:15px;
+
+    padding:12px;
+
+    border-radius:8px;
+
+    border:none;
+
+    background:var(--panel2);
+
+    color:white;
+
+    font-size:15px;
+
+}
+
+nav{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:8px;
+
+    padding:10px;
+
+}
+
+.tab{
+
+    background:transparent;
+
+    border:none;
+
+    color:var(--muted);
+
+    text-align:left;
+
+    padding:12px;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+.tab:hover{
+
+    background:var(--panel2);
+
+    color:white;
+
+}
+
+.tab.active{
+
+    background:var(--blue);
+
+    color:white;
+
+}
+
+#sidebarContent{
+
+    flex:1;
+
+    overflow:auto;
+
+    padding:10px;
+
+}
+
+main{
+
+    flex:1;
+
+}
+
+#map{
+
+    width:100%;
+
+    height:100%;
+
+}
+
+.card{
+
+    background:var(--panel2);
+
+    border-radius:8px;
+
+    padding:12px;
+
+    margin-bottom:10px;
+
+}
+
+.badge{
+
+    display:inline-block;
+
+    padding:4px 8px;
+
+    border-radius:6px;
+
+    font-size:12px;
+
+    font-weight:600;
+
+}
+
+.open{
+
+    background:rgba(34,197,94,.2);
+
+    color:var(--green);
+
+}
+
+.closed{
+
+    background:rgba(239,68,68,.2);
+
+    color:var(--red);
+
+}
+
+.restricted{
+
+    background:rgba(245,158,11,.2);
+
+    color:var(--yellow);
+
+}
+
+@media(max-width:900px){
+
+    .sidebar{
+
+        width:100%;
+
+        height:320px;
+
+    }
+
+    .container{
+
+        flex-direction:column;
+
+    }
+
+}

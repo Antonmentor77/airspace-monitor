@@ -185,6 +185,10 @@ header{height:52px;background:var(--s1);border-bottom:1px solid var(--border);di
   <div class="bot-leg"><div class="ld" style="background:var(--ok)"></div>Открыт</div>
   <div class="bot-leg"><div class="ld" style="background:var(--warn)"></div>Ограничен</div>
   <div class="bot-leg"><div class="ld" style="background:var(--danger)"></div>Закрыт / угроза</div>
+  <div class="bot-leg">💥 Ракета</div>
+  <div class="bot-leg">🛸 БПЛА</div>
+  <div class="bot-leg">🚫 Закрытие</div>
+  <div class="bot-leg">⚠️ Предупреждение</div>
   <div class="bot-leg"><div class="ld" style="background:#ff6b00"></div>Атака БПЛА/ракета</div>
   <span style="margin-left:auto;font-family:var(--mono)" id="upd-time">—</span>
 </div>
@@ -252,10 +256,23 @@ function iconAirport(status){
     iconSize:[11,11],iconAnchor:[5,5],className:''
   });
 }
+// Единая карта символов/цветов для всех типов угроз —
+// принимает и русские подписи из STRIKES ('Ракета','БПЛА'),
+// и английские ключи из live-классификатора Telegram (missile, drone, ...)
+const THREAT_STYLE = {
+  missile:        { icon: '💥', color: '#ff3b3b', size: 22 },
+  'Ракета':       { icon: '💥', color: '#ff3b3b', size: 22 },
+  drone:          { icon: '🛸', color: '#ff9d2e', size: 20 },
+  'БПЛА':         { icon: '🛸', color: '#ff9d2e', size: 20 },
+  airport_closed: { icon: '🚫', color: '#f5c518', size: 18 },
+  warning:        { icon: '⚠️', color: '#f5a623', size: 18 },
+  info:           { icon: 'ℹ️', color: '#4f8ef7', size: 16 },
+};
 function iconStrike(type){
+  const s = THREAT_STYLE[type] || THREAT_STYLE.warning;
   return L.divIcon({
-    html:`<div style="font-size:16px;filter:drop-shadow(0 0 4px #ff6b00);line-height:1">${type==='Ракета'?'💥':'🔴'}</div>`,
-    iconSize:[20,20],iconAnchor:[10,10],className:''
+    html:`<div style="font-size:${s.size}px;filter:drop-shadow(0 0 4px ${s.color});line-height:1">${s.icon}</div>`,
+    iconSize:[s.size+4,s.size+4],iconAnchor:[(s.size+4)/2,(s.size+4)/2],className:''
   });
 }
 
@@ -438,13 +455,45 @@ function showTab(tab){
 
 // ─── ФОКУС НА РЕГИОН ───
 const REGION_COORDS={
-  'Москва':[55.75,37.62],'Белгород':[50.60,36.59],'Краснодар':[45.02,38.99],
-  'Ростов':[47.23,39.72],'Воронеж':[51.67,39.18],'Курск':[51.73,36.19],
-  'Казань':[55.79,49.12],'Саратов':[51.53,46.03]
+  'Москва':[55.75,37.62],'Московская':[55.75,37.62],
+  'Санкт-Петербург':[59.93,30.31],'Белгород':[50.60,36.59],
+  'Краснодар':[45.02,38.99],'Ростов':[47.23,39.72],
+  'Воронеж':[51.67,39.18],'Курск':[51.73,36.19],
+  'Брянск':[53.24,34.36],'Саратов':[51.53,46.03],
+  'Тула':[54.19,37.62],'Калуга':[54.51,36.26],
+  'Орёл':[52.97,36.07],'Липецк':[52.61,39.60],
+  'Тамбов':[52.72,41.45],'Рязань':[54.63,39.74],
+  'Владимир':[56.13,40.41],'Крым':[45.05,34.10],
+  'Севастополь':[44.62,33.53],'Анапа':[45.00,37.35],
+  'Сочи':[43.60,39.73],'Ставрополь':[45.04,41.97],
+  'Казань':[55.79,49.12]
 };
 function focusRegion(r){
   const c=REGION_COORDS[r];
   if(c) map.setView(c,9);
+}
+
+// ─── RENDER ЖИВЫХ УГРОЗ ИЗ TELEGRAM НА КАРТЕ ───
+// Раньше layThreats создавался, но никогда не заполнялся —
+// живые угрозы были видны только в текстовом списке сбоку.
+function renderLiveThreats(alerts){
+  layThreats.clearLayers();
+  alerts.forEach(a=>{
+    if(!a.regions || !a.regions.length) return;
+    if(a.type==='all_clear') return; // отбой не показываем как угрозу
+    a.regions.forEach(region=>{
+      const c=REGION_COORDS[region];
+      if(!c) return;
+      const m=L.marker(c,{icon:iconStrike(a.type)});
+      m.bindPopup(`
+        <div class="pp-title">${typeEmoji(a.type)} · ${region}</div>
+        <div class="pp-row"><span>Когда</span><span>${ago(a.date)} назад</span></div>
+        <div class="pp-alert">${(a.description||a.text||'').slice(0,250)}</div>
+        <div class="pp-row"><span>Источник</span><span>${a.source||''}</span></div>
+      `);
+      m.addTo(layThreats);
+    });
+  });
 }
 
 // ─── POLLING ───
@@ -460,6 +509,7 @@ async function fetchData(){
     if(f.length) renderFlights(f);
     if(a.length) renderAirports(a);
     renderAlerts(al);
+    renderLiveThreats(al);
     document.getElementById('upd-time').textContent='Обновлено: '+ago(new Date().toISOString());
     dot.className='cdot on';
     lbl.textContent='Онлайн · обновление каждые 30с';
