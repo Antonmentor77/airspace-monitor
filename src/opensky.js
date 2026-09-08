@@ -56,16 +56,24 @@ const ADSBLOL_TILES = [
   { name: 'Москва',        lat: 55.75, lon: 37.62 },
   { name: 'СПб',           lat: 59.94, lon: 30.31 },
   { name: 'Калининград',   lat: 54.71, lon: 20.51 },
+  { name: 'Мурманск',      lat: 68.97, lon: 33.08 },
   { name: 'Ростов/Юг',     lat: 47.23, lon: 39.72 },
   { name: 'Краснодар/Крым',lat: 45.30, lon: 38.50 },
   { name: 'Волгоград',     lat: 48.71, lon: 44.50 },
   { name: 'Казань',        lat: 55.79, lon: 49.12 },
+  { name: 'Самара',        lat: 53.20, lon: 50.15 },
+  { name: 'Пермь',         lat: 58.01, lon: 56.23 },
   { name: 'Екатеринбург',  lat: 56.84, lon: 60.61 },
+  { name: 'Тюмень',        lat: 57.15, lon: 65.53 },
+  { name: 'Омск',          lat: 54.99, lon: 73.37 },
   { name: 'Новосибирск',   lat: 55.03, lon: 82.92 },
   { name: 'Красноярск',    lat: 56.02, lon: 92.87 },
   { name: 'Иркутск',       lat: 52.29, lon: 104.30 },
+  { name: 'Якутск',        lat: 62.03, lon: 129.73 },
   { name: 'Хабаровск',     lat: 48.48, lon: 135.08 },
   { name: 'Владивосток',   lat: 43.12, lon: 131.90 },
+  { name: 'Магадан',       lat: 59.57, lon: 150.80 },
+  { name: 'Сахалин',       lat: 46.96, lon: 142.74 },
 ];
 const ADSBLOL_RADIUS_NM = 250;
 
@@ -120,6 +128,8 @@ async function fetchFlightsFromAdsbLol() {
       squawk: p.squawk,
       emergency: ['7700', '7600', '7500'].includes(p.squawk),
       isMilitary: milSet.has(p.hex) || p.dbFlags === 1,
+      type: p.t || null,
+      registration: p.r || null,
       lastSeen: p.seen_pos ?? p.seen ?? null,
     });
   });

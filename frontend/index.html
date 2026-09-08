@@ -173,6 +173,9 @@ header{height:52px;background:var(--s1);border-bottom:1px solid var(--border);di
     <!-- БОРТЫ -->
     <div class="sb-body" id="pane-flights" style="display:none">
       <div class="sec-hdr" id="flights-hdr">Самолёты над РФ</div>
+      <label style="display:flex;align-items:center;gap:6px;padding:8px 14px;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="milOnly" onchange="renderFlights(window.__lastFlights||[])"> Только военные
+      </label>
       <div id="flight-list"><div class="empty">Загрузка...</div></div>
     </div>
   </div>
@@ -415,12 +418,16 @@ function renderStrikes(){
 
 // ─── RENDER БОРТЫ ───
 function renderFlights(flights){
+  window.__lastFlights = flights;
+  const milOnly = document.getElementById('milOnly')?.checked;
+  const visible = milOnly ? flights.filter(f=>f.isMilitary) : flights;
+
   layFlights.clearLayers();
   document.getElementById('h-flights').textContent=flights.length;
-  document.getElementById('flights-hdr').textContent=`Самолёты над РФ · ${flights.length} бортов`;
+  document.getElementById('flights-hdr').textContent=`Самолёты над РФ · ${flights.length} бортов${milOnly?' (военные: '+visible.length+')':''}`;
 
-  const emrg=flights.filter(f=>f.emergency);
-  const sorted=[...emrg,...flights.filter(f=>!f.emergency)].slice(0,200);
+  const emrg=visible.filter(f=>f.emergency);
+  const sorted=[...emrg,...visible.filter(f=>!f.emergency)].slice(0,200);
 
   sorted.forEach(f=>{
     if(!f.lat||!f.lng) return;
@@ -431,7 +438,9 @@ function renderFlights(flights){
       <div class="pp-row"><span>Высота</span><span>${f.altitude?f.altitude+'м':'—'}</span></div>
       <div class="pp-row"><span>Скорость</span><span>${f.speed?f.speed+'км/ч':'—'}</span></div>
       <div class="pp-row"><span>Курс</span><span>${f.heading}°</span></div>
-      ${f.isMilitary?`<div class="pp-row"><span>Тип</span><span>Военный борт</span></div>`:''}
+      ${f.type?`<div class="pp-row"><span>Тип борта</span><span>${f.type}</span></div>`:''}
+      ${f.registration?`<div class="pp-row"><span>Регистрация</span><span>${f.registration}</span></div>`:''}
+      ${f.isMilitary?`<div class="pp-row"><span>Категория</span><span>Военный борт</span></div>`:''}
       ${f.emergency?`<div class="pp-alert">⚠ АВАРИЙНЫЙ СИГНАЛ ${f.squawk}</div>`:''}
     `);
     m.addTo(layFlights);
@@ -440,7 +449,7 @@ function renderFlights(flights){
   document.getElementById('flight-list').innerHTML=sorted.map(f=>`
     <div class="fl ${f.emergency?'emrg':''}" onclick="map.setView([${f.lat},${f.lng}],9)">
       <span class="fl-cs" style="color:${f.emergency?'var(--danger)':(f.isMilitary?'#84cc16':'var(--accent)')}">${f.isMilitary?'🪖 ':''}${f.callsign||f.id}</span>
-      <span class="fl-info">${f.country||''} · ${f.altitude?f.altitude+'м':''} · ${f.speed?f.speed+'км/ч':''}</span>
+      <span class="fl-info">${f.country||''} · ${f.type?f.type+' · ':''}${f.altitude?f.altitude+'м':''} · ${f.speed?f.speed+'км/ч':''}</span>
       ${f.emergency?'<span class="badge b-danger">SOS</span>':''}
     </div>
   `).join('');
