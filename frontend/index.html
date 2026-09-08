@@ -182,6 +182,7 @@ header{height:52px;background:var(--s1);border-bottom:1px solid var(--border);di
 
 <div class="bot">
   <div class="bot-leg"><div class="ld" style="background:var(--accent)"></div>Самолёт</div>
+  <div class="bot-leg"><div class="ld" style="background:#84cc16"></div>Военный борт</div>
   <div class="bot-leg"><div class="ld" style="background:var(--ok)"></div>Открыт</div>
   <div class="bot-leg"><div class="ld" style="background:var(--warn)"></div>Ограничен</div>
   <div class="bot-leg"><div class="ld" style="background:var(--danger)"></div>Закрыт / угроза</div>
@@ -199,8 +200,8 @@ const API = 'https://airspace-monitor.onrender.com';
 
 // ─── MAP ───
 const map = L.map('map', {center:[60,90], zoom:4, zoomControl:true});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-  {attribution:'© OpenStreetMap © CARTO', maxZoom:18}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {attribution:'© OpenStreetMap contributors', maxZoom:19}).addTo(map);
 
 const layFlights  = L.layerGroup().addTo(map);
 const layAirports = L.layerGroup().addTo(map);
@@ -242,9 +243,10 @@ function riskLevel(iata){
 }
 
 // ─── ИКОНКИ ───
-function iconPlane(h,emrg){
+function iconPlane(h,emrg,mil){
+  const color = emrg ? '#f04b4b' : (mil ? '#84cc16' : '#4f8ef7');
   return L.divIcon({
-    html:`<div style="font-size:13px;transform:rotate(${h}deg);filter:drop-shadow(0 0 3px ${emrg?'#f04b4b':'#4f8ef7'});line-height:1">✈</div>`,
+    html:`<div style="font-size:13px;transform:rotate(${h}deg);filter:drop-shadow(0 0 3px ${color});line-height:1">${mil?'✈︎':'✈'}</div>`,
     iconSize:[18,18],iconAnchor:[9,9],className:''
   });
 }
@@ -422,13 +424,14 @@ function renderFlights(flights){
 
   sorted.forEach(f=>{
     if(!f.lat||!f.lng) return;
-    const m=L.marker([f.lat,f.lng],{icon:iconPlane(f.heading,f.emergency)});
+    const m=L.marker([f.lat,f.lng],{icon:iconPlane(f.heading,f.emergency,f.isMilitary)});
     m.bindPopup(`
-      <div class="pp-title">${f.callsign||f.id}</div>
+      <div class="pp-title">${f.isMilitary?'🪖 ':''}${f.callsign||f.id}</div>
       <div class="pp-row"><span>Страна</span><span>${f.country||'—'}</span></div>
       <div class="pp-row"><span>Высота</span><span>${f.altitude?f.altitude+'м':'—'}</span></div>
       <div class="pp-row"><span>Скорость</span><span>${f.speed?f.speed+'км/ч':'—'}</span></div>
       <div class="pp-row"><span>Курс</span><span>${f.heading}°</span></div>
+      ${f.isMilitary?`<div class="pp-row"><span>Тип</span><span>Военный борт</span></div>`:''}
       ${f.emergency?`<div class="pp-alert">⚠ АВАРИЙНЫЙ СИГНАЛ ${f.squawk}</div>`:''}
     `);
     m.addTo(layFlights);
@@ -436,7 +439,7 @@ function renderFlights(flights){
 
   document.getElementById('flight-list').innerHTML=sorted.map(f=>`
     <div class="fl ${f.emergency?'emrg':''}" onclick="map.setView([${f.lat},${f.lng}],9)">
-      <span class="fl-cs" style="color:${f.emergency?'var(--danger)':'var(--accent)'}">${f.callsign||f.id}</span>
+      <span class="fl-cs" style="color:${f.emergency?'var(--danger)':(f.isMilitary?'#84cc16':'var(--accent)')}">${f.isMilitary?'🪖 ':''}${f.callsign||f.id}</span>
       <span class="fl-info">${f.country||''} · ${f.altitude?f.altitude+'м':''} · ${f.speed?f.speed+'км/ч':''}</span>
       ${f.emergency?'<span class="badge b-danger">SOS</span>':''}
     </div>

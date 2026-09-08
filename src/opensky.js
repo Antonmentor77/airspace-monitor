@@ -50,7 +50,85 @@ async function getToken() {
   return accessToken;
 }
 
-async function fetchFlights() {
+// ─── ADSB.LOL — основной источник (без ключей, лучше покрытие, включая часть военных) ───
+// Точечные запросы (макс. радиус 250 морских миль на точку), покрывающие территорию России.
+const ADSBLOL_TILES = [
+  { name: 'Москва',        lat: 55.75, lon: 37.62 },
+  { name: 'СПб',           lat: 59.94, lon: 30.31 },
+  { name: 'Калининград',   lat: 54.71, lon: 20.51 },
+  { name: 'Ростов/Юг',     lat: 47.23, lon: 39.72 },
+  { name: 'Краснодар/Крым',lat: 45.30, lon: 38.50 },
+  { name: 'Волгоград',     lat: 48.71, lon: 44.50 },
+  { name: 'Казань',        lat: 55.79, lon: 49.12 },
+  { name: 'Екатеринбург',  lat: 56.84, lon: 60.61 },
+  { name: 'Новосибирск',   lat: 55.03, lon: 82.92 },
+  { name: 'Красноярск',    lat: 56.02, lon: 92.87 },
+  { name: 'Иркутск',       lat: 52.29, lon: 104.30 },
+  { name: 'Хабаровск',     lat: 48.48, lon: 135.08 },
+  { name: 'Владивосток',   lat: 43.12, lon: 131.90 },
+];
+const ADSBLOL_RADIUS_NM = 250;
+
+async function fetchAdsbLolTile(tile) {
+  try {
+    const resp = await fetch(
+      `https://api.adsb.lol/v2/point/${tile.lat}/${tile.lon}/${ADSBLOL_RADIUS_NM}`,
+      { headers: { 'User-Agent': 'AirspaceMonitorRU/1.0' } }
+    );
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.ac || [];
+  } catch (e) {
+    console.warn(`[adsb.lol] Ошибка тайла ${tile.name}:`, e.message);
+    return [];
+  }
+}
+
+async function fetchMilitarySet() {
+  // Глобальный список военных бортов adsb.lol — используем как метку isMilitary
+  try {
+    const resp = await fetch('https://api.adsb.lol/v2/mil', {
+      headers: { 'User-Agent': 'AirspaceMonitorRU/1.0' }
+    });
+    if (!resp.ok) return new Set();
+    const data = await resp.json();
+    return new Set((data.ac || []).map(p => p.hex));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+async function fetchFlightsFromAdsbLol() {
+  const [tiles, milSet] = await Promise.all([
+    Promise.all(ADSBLOL_TILES.map(fetchAdsbLolTile)),
+    fetchMilitarySet(),
+  ]);
+
+  const seen = new Map();
+  tiles.flat().forEach(p => {
+    if (!p.hex || typeof p.lat !== 'number' || typeof p.lon !== 'number') return;
+    if (seen.has(p.hex)) return; // убираем дубликаты между тайлами
+    seen.set(p.hex, {
+      id: p.hex,
+      callsign: (p.flight || '').trim(),
+      country: p.r || '',
+      lat: p.lat,
+      lng: p.lon,
+      altitude: typeof p.alt_baro === 'number' ? Math.round(p.alt_baro * 0.3048) : 0, // футы → метры
+      speed: p.gs ? Math.round(p.gs * 1.852) : 0, // узлы → км/ч
+      heading: Math.round(p.track || 0),
+      squawk: p.squawk,
+      emergency: ['7700', '7600', '7500'].includes(p.squawk),
+      isMilitary: milSet.has(p.hex) || p.dbFlags === 1,
+      lastSeen: p.seen_pos ?? p.seen ?? null,
+    });
+  });
+
+  return Array.from(seen.values());
+}
+
+// ─── OpenSky — резервный источник, если adsb.lol недоступен ───
+async function fetchFlightsFromOpenSky() {
   const token = await getToken();
   const { lamin, lamax, lomin, lomax } = RUSSIA_BBOX;
 
@@ -62,24 +140,21 @@ async function fetchFlights() {
   const resp = await fetch(url, { headers });
 
   if (resp.status === 429) {
-    console.warn('[opensky] Превышен лимит запросов, используем кеш');
-    return null; // вернём null, сервер использует кеш
+    console.warn('[opensky] Превышен лимит запросов');
+    return [];
   }
-
   if (!resp.ok) throw new Error(`OpenSky error: ${resp.status}`);
 
   const data = await resp.json();
-
   if (!data.states) return [];
 
-  // Преобразуем массивы в объекты
   return data.states
     .map(state => {
       const obj = {};
       FIELDS.forEach((field, i) => { obj[field] = state[i]; });
       return obj;
     })
-    .filter(f => !f.on_ground && f.latitude && f.longitude) // только летящие
+    .filter(f => !f.on_ground && f.latitude && f.longitude)
     .map(f => ({
       id: f.icao24,
       callsign: (f.callsign || '').trim(),
@@ -87,13 +162,30 @@ async function fetchFlights() {
       lat: f.latitude,
       lng: f.longitude,
       altitude: Math.round(f.baro_altitude || 0),
-      speed: Math.round((f.velocity || 0) * 3.6), // м/с → км/ч
+      speed: Math.round((f.velocity || 0) * 3.6),
       heading: Math.round(f.true_track || 0),
       squawk: f.squawk,
-      // Сквок 7700 = аварийная ситуация, 7600 = потеря связи, 7500 = захват
       emergency: ['7700', '7600', '7500'].includes(f.squawk),
+      isMilitary: false,
       lastSeen: f.last_contact,
     }));
+}
+
+async function fetchFlights() {
+  try {
+    const flights = await fetchFlightsFromAdsbLol();
+    if (flights.length > 0) return flights;
+    console.warn('[adsb.lol] Пусто, пробуем OpenSky как резерв');
+  } catch (e) {
+    console.warn('[adsb.lol] Ошибка, пробуем OpenSky как резерв:', e.message);
+  }
+
+  try {
+    return await fetchFlightsFromOpenSky();
+  } catch (e) {
+    console.error('[opensky] Тоже недоступен:', e.message);
+    return [];
+  }
 }
 
 // Список аэропортов РФ с ICAO кодами
